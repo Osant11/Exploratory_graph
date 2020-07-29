@@ -170,8 +170,11 @@ ggplot(base_data_1, aes(x = Var_A , y = Var_A_end, col = Event_B, shape = Treatm
        caption = "Red dot: Serious adverse event occuring 30 days before EOT", 
        title = "Variable A at EOT against Baseline",
        subtitle = "Beige line: No Improvement; Green line = Improvement of 3 pts; Red line = Worsen of 3 pts")  + 
+  theme_bw() +
   theme(legend.position="bottom", 
-        legend.justification = "left", 
+        legend.justification = "left",
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
         plot.caption = element_text(hjust = 0.02))
 
 
@@ -203,8 +206,11 @@ ggplot(base_data_1, aes(x = Var_A , y = Var_A_end, col = Change_Var_B, shape = T
        caption = "Red dot: Missing Change Var B", 
        title = "Variable A at EOT against Baseline",
        subtitle = "Beige line: No Improvement; Green line = Improvement of 3 pts; Red line = Worsen of 3 pts")  + 
+  theme_bw() +
   theme(legend.position="bottom", 
-        legend.justification = "left", 
+        legend.justification = "left",
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
         plot.caption = element_text(hjust = 0.02))
 
 
@@ -234,9 +240,12 @@ ggplot(base_data_1, aes(x = Var_A, y = Var_A_end, shape = Treatment, col = Count
        title = "Variable A at EOT against Baseline colored by cumulative number of event C", 
        subtitle = "Blue line: No Improvement; Green line = Improvement of 3 pts; Red line = Worsen of 3 pts", 
        caption = "Orange dot: Missing Count assessment")  + 
+  theme_bw() +
   theme(legend.position="bottom", 
-        legend.justification = "left", 
-        plot.caption = element_text(hjust = 0))
+        legend.justification = "left",
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        plot.caption = element_text(hjust = 0.02))
 
 
 
@@ -272,7 +281,10 @@ ggplot(base_data_1, aes(x = Count_Var2, y = Var_C, col = Treatment), drop=FALSE)
        title = "Number of event at EOT against Variable C at EOT filled by Variable A Change") +
   ylab("Variable C") + 
   xlab("Number of events") +
+  theme_bw() +
   theme(legend.position="bottom", 
-        legend.justification = "left", 
-        plot.caption = element_text(hjust = 0)) +
+        legend.justification = "left",
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        plot.caption = element_text(hjust = 0.02)) +
   guides(color = guide_legend(order = 1))
