@@ -6,11 +6,14 @@ library(stringr)
 library(summarytools)
 library(knitr)
 library(scales)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+library(cowplot)
 
+### Please load base_data ###
 
-load(file = "/Users/osant/R Project/Graph Explo/Data/base_data.RData")
-
-base_data <- base_data %>% 
+base_data_1 <- base_data %>% 
   mutate(Count_Var = ifelse(Var_A_chg >= 0, rnbinom(906, size = 0.2, mu = 4), rnbinom(906, size = 0.2, mu = 1.5)), 
          Count_Var = ifelse(prob <= 0.03, NA, Count_Var), 
          Change_Var_B = ifelse(Var_A_chg >= 0, rnorm(906, 0.5, 2), rnorm(906, -0.5, 2)), 
@@ -29,29 +32,60 @@ base_data <- base_data %>%
 
 
 # Distribution of Fatigue - AVAL 
-ggplot(base_data, aes(x = Var_A)) + 
-  geom_histogram(fill = "blue", col = "blue", alpha = 0.4, boundary = min(base_data$Var_B), bins = 25) + 
-  stat_ecdf(aes(y = ..y..  * 96), color = alpha("red", 0.5)) +
-  stat_bin(aes(y = ..count.. + 4, label = paste(..count.., " / \n", round(..count.. / 906, 3) * 100, "%*", sep = "")), 
-           geom = "text", bins  = 25,  boundary = min(base_data$Var_B), size = 2.5) +
+
+titles <- c("Histogram of Variable A at EOT")
+footnotes <- c(paste(" Black line: Mean - Dashed green line : Median - Red line: Empirical Cumulative Distribution Function", 
+                     "\n* Number of observations / Percentage"))
+
+q <- ggplot(base_data_1, aes(x = Var_A)) + 
+  geom_histogram(fill = "blue", col = "blue", alpha = 0.4, boundary = -2, binwidth = 0.5) 
+
+p <- q + 
+  stat_ecdf(aes(y = ..y..  * max(layer_data(q, i = 1)[1])), color = alpha("red", 0.5)) +
+  stat_bin(aes(y = ..count.. + 10, label = paste(..count.., " / \n", round(..count.. / nrow(base_data_1), 3) * 100, "%*", sep = "")), 
+           geom = "text", binwidth = 0.5,  boundary = -2, size = 2.5) +
   geom_vline(aes(xintercept = mean(Var_B)), size = 0.7, alpha = 0.6) +
   geom_vline(aes(xintercept = median(Var_B)), size = 0.7, linetype = "dashed", col = "green4", alpha = 0.7) +
-  scale_x_continuous(breaks = seq(floor(min(base_data$Var_B)), ceiling(max(base_data$Var_B)) , 1)) + 
-  scale_y_continuous(breaks = seq(0, 100, 10), 
-                     sec.axis = sec_axis(~./115, breaks = seq(0,1,0.1), name = "ECDF")) + 
-  xlab("Values at Week 108") +
+  scale_x_continuous(breaks = seq(floor(min(base_data_1$Var_A)), ceiling(max(base_data_1$Var_A)), 0.5), 
+                     limits = c(floor(min(base_data_1$Var_A)), ceiling(max(base_data_1$Var_A)))) + 
+  # scale_y_continuous(breaks = seq(0, max(layer_data(q, i = 1)[1]) + 20, 10), 
+  #                    sec.axis = sec_axis(~./max(layer_data(q, i = 1)[1]), breaks = seq(0,1,0.1), name = "ECDF")) + 
+  xlab("Values at EOT") +
   ylab("Count") + 
-  labs(caption = paste(" Black line: Mean - Dashed green line : Median - Red line: Empirical Cumulative Distribution Function", 
-                       "\n* Number of observations / Percentage"), 
-       title = "Histogram of Variable A at EOT") + 
-  theme(plot.caption = element_text(hjust = 0.01))
+  theme_bw() +
+  theme(plot.caption = element_text(hjust = 0.01), 
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.background = element_blank())
+
+#Table
+p.data <- layer_data(p, i = 1) %>% 
+  mutate(Dens = paste(format(round(cumsum(count/sum(count) * 100), 1), nsmall = 1), "%", sep = ""))
+
+t <- ggplot(p.data, aes(x = x, y = "ECDF", label = Dens)) + 
+  geom_text(size = 2.8) + 
+  scale_x_continuous(breaks = seq(floor(min(base_data_1$Var_B)), ceiling(max(base_data_1$Var_B)) , 1), 
+                     limits = c(floor(min(base_data_1$Var_A)), ceiling(max(base_data_1$Var_A)))) + 
+  theme_void() +
+  theme(axis.text.y = element_text(size = 9, hjust = 0.95))
   
+
+c <- ggarrange(p, t, ncol = 1, nrow = 2, heights = c(27, 3), align = "v") 
+
+
+grid.arrange(c, 
+             bottom = textGrob(footnotes,
+                               x = 0.01, hjust = 0, gp = gpar(fontface = 3L, fontsize = 10)),
+             top = textGrob(titles,
+                            x = 0.01, hjust = 0, gp = gpar(fontface = 3L, fontsize = 13))
+) 
+
 
 
 ##### Dif_EOT_BSL_1: Baseline Value aginst EOT #####
 ##### Dif_EOT_BSL_1: Baseline Value aginst EOT ##### 
 ##### Dif_EOT_BSL_1: Baseline Value aginst EOT ##### 
-ggplot(base_data, aes(x = Var_A , y = Var_A_end, col = Var_A_chg, shape = Treatment)) + 
+ggplot(base_data_1, aes(x = Var_A , y = Var_A_end, col = Var_A_chg, shape = Treatment)) + 
   geom_point(position = position_jitter(), size = 1) + 
   geom_abline(slope = 1, intercept = 0, col = "wheat3") + 
   geom_abline(slope = 1, intercept = 3, col = "red2", alpha = 0.6) +
@@ -72,9 +106,12 @@ ggplot(base_data, aes(x = Var_A , y = Var_A_end, col = Var_A_chg, shape = Treatm
        caption = NULL, 
        title = "Variable A at EOT against Baseline",
        subtitle = "Beige line: No Improvement; Green line = Improvement of 3 pts; Red line = Worsen of 3 pts") + 
+  theme_bw() +
   theme(legend.position="bottom", 
         legend.justification = "left", 
-        plot.caption = element_text(hjust = 0))
+        plot.caption = element_text(hjust = 0),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank())
 
 
 
@@ -82,7 +119,7 @@ ggplot(base_data, aes(x = Var_A , y = Var_A_end, col = Var_A_chg, shape = Treatm
 ##### Dif_EOT_BSL_2: Baseline Value aginst EOT and highlighted subjects with events before EOT ##### 
 ##### Dif_EOT_BSL_2: Baseline Value aginst EOT and highlighted subjects with events before EOT ##### 
 ##### Dif_EOT_BSL_2: Baseline Value aginst EOT and highlighted subjects with events before EOT ##### 
-ggplot(base_data, aes(x = Var_A , y = Var_A_end, shape = Treatment, col = Var_A_chg)) + 
+ggplot(base_data_1, aes(x = Var_A , y = Var_A_end, shape = Treatment, col = Var_A_chg)) + 
   geom_point(position = position_jitter(), size = 1) + 
   geom_abline(slope = 1, intercept = 0, col = "wheat3") + 
   geom_abline(slope = 1, intercept = 3, col = "red2", alpha = 0.6) +
@@ -104,8 +141,11 @@ ggplot(base_data, aes(x = Var_A , y = Var_A_end, shape = Treatment, col = Var_A_
        caption = "Red: Subject with event 15 days before EOT", 
        title = "Variable A at EOT against Baseline",
        subtitle = "Beige line: No Improvement; Green line = Improvement of 3 pts; Red line = Worsen of 3 pts") + 
+  theme_bw() +
   theme(legend.position="bottom", 
         legend.justification = "left",
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
         plot.caption = element_text(hjust = 0.02))
 
 
@@ -113,7 +153,7 @@ ggplot(base_data, aes(x = Var_A , y = Var_A_end, shape = Treatment, col = Var_A_
 ##### Dif_EOT_BSL_event: Baseline Value aginst EOT and highlighted subjects with events before EOT ##### 
 ##### Dif_EOT_BSL_event: Baseline Value aginst EOT and highlighted subjects with events before EOT ##### 
 ##### Dif_EOT_BSL_event: Baseline Value aginst EOT and highlighted subjects with events before EOT #####
-ggplot(base_data, aes(x = Var_A , y = Var_A_end, col = Event_B, shape = Treatment)) + 
+ggplot(base_data_1, aes(x = Var_A , y = Var_A_end, col = Event_B, shape = Treatment)) + 
   geom_point(position = position_jitter(), size = 1) + 
   geom_abline(slope = 1, intercept = 0, col = "wheat3") + 
   geom_abline(slope = 1, intercept = 3, col = "red2", alpha = 0.6) +
@@ -139,7 +179,7 @@ ggplot(base_data, aes(x = Var_A , y = Var_A_end, col = Event_B, shape = Treatmen
 ##### Dif_EOT_BSL_3: Baseline Value aginst EOT and filled by specific continuous variable ##### 
 ##### Dif_EOT_BSL_3: Baseline Value aginst EOT and filled by specific continuous variable ##### 
 ##### Dif_EOT_BSL_3: Baseline Value aginst EOT and filled by specific continuous variable ##### 
-ggplot(base_data, aes(x = Var_A , y = Var_A_end, col = Change_Var_B, shape = Treatment)) + 
+ggplot(base_data_1, aes(x = Var_A , y = Var_A_end, col = Change_Var_B, shape = Treatment)) + 
   geom_point(position = position_jitter(), size = 1) + 
   geom_abline(slope = 1, intercept = 0, col = "wheat3") + 
   geom_abline(slope = 1, intercept = 3, col = "red2", alpha = 0.6) +
@@ -173,7 +213,7 @@ ggplot(base_data, aes(x = Var_A , y = Var_A_end, col = Change_Var_B, shape = Tre
 ##### Dif_EOT_BSL_4: Baseline Value aginst EOT and filled by specific count variable ##### 
 ##### Dif_EOT_BSL_4: Baseline Value aginst EOT and filled by specific count variable ##### 
 ##### Dif_EOT_BSL_4: Baseline Value aginst EOT and filled by specific count variable ##### 
-ggplot(base_data, aes(x = Var_A, y = Var_A_end, shape = Treatment, col = Count_Var)) + 
+ggplot(base_data_1, aes(x = Var_A, y = Var_A_end, shape = Treatment, col = Count_Var)) + 
   geom_point(position = position_jitter(), size = 1.5) + 
   geom_abline(slope = 1, intercept = 0, col = "blue", alpha = 0.5) + 
   geom_abline(slope = 1, intercept = 3, col = "red2", alpha = 0.6) +
@@ -204,7 +244,7 @@ ggplot(base_data, aes(x = Var_A, y = Var_A_end, shape = Treatment, col = Count_V
 ##### EVENT_VAR_REG: Continuous variable by count variables filled by specific variable #####
 ##### EVENT_VAR_REG: Continuous variable by count variables filled by specific variable #####
 ##### EVENT_VAR_REG: Continuous variable by count variables filled by specific variable #####
-Var_c_descr <- base_data %>% 
+Var_c_descr <- base_data_1 %>% 
   group_by(Treatment, Count_Var2) %>% 
   summarise(n = n(), 
             mean = mean(Var_C)) %>% 
@@ -213,7 +253,7 @@ Var_c_descr <- base_data %>%
          prop = paste(round(n / tot, 3) * 100, "%", sep = ""), 
          pos = ifelse(Treatment == "Treatment A", Count_Var2 - 0.25, Count_Var2 + 0.25))
 
-ggplot(base_data, aes(x = Count_Var2, y = Var_C, col = Treatment), drop=FALSE) + 
+ggplot(base_data_1, aes(x = Count_Var2, y = Var_C, col = Treatment), drop=FALSE) + 
   geom_point(aes(fill = Var_A_chg), position = position_jitterdodge(0.20), stroke = 1, shape = 21) + 
   geom_point(data = Var_c_descr, aes(y = mean, x = pos), shape = 4, col = "black", size = 2) +
   geom_text(data = Var_c_descr, aes(y = -19, x = pos, label = paste(n, " /\n ", prop, "* ", sep = ""), col = Treatment), 
